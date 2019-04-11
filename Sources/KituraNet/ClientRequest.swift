@@ -159,6 +159,15 @@ public class ClientRequest {
     /// Data that represents the "HTTP/2.0 " (with a minor) header status line prefix
     fileprivate static let Http2StatusLineVersionWithMinor = "HTTP/2.0 ".data(using: .utf8)!
 
+    /// The filename of the SSL client certificate (in PEM format)
+    public private(set) var sslCertificate: String?
+
+    /// The filename of the private key for the SSL client certificate (in PEM format)
+    public private(set) var sslKey: String?
+
+    /// The private key passphrase
+    public private(set) var sslKeyPassphrase: String?
+  
     /**
     Client request options enum. This allows the client to specify certain parameteres such as HTTP headers, HTTP methods, host names, and SSL credentials.
     
@@ -213,6 +222,15 @@ public class ClientRequest {
         
         /// If present, the client will try to use HTTP/2 protocol for the connection.
         case useHTTP2
+      
+      /// Specifies the filename of the SSL client certificate (in PEM format)
+      case sslCertificate(String)
+      
+      /// Specifies the filename of the private key for the SSL client certificate (in PEM format)
+      case sslKey(String)
+      
+      /// Specifies the private key passphrase
+      case sslKeyPassphrase(String)
 
     }
 
@@ -258,7 +276,7 @@ public class ClientRequest {
         for option in options  {
             switch(option) {
 
-                case .method, .headers, .maxRedirects, .disableSSLVerification, .useHTTP2:
+                case .method, .headers, .maxRedirects, .disableSSLVerification, .useHTTP2, .sslCertificate, .sslKey, .sslKeyPassphrase:
                     // call set() for Options that do not construct the URL
                     set(option)
                 case .schema(var schema):
@@ -326,6 +344,12 @@ public class ClientRequest {
             self.disableSSLVerification = true
         case .useHTTP2:
             self.useHTTP2 = true
+        case .sslCertificate(let sslCertificate):
+          self.sslCertificate = sslCertificate
+        case .sslKey(let sslKey):
+          self.sslKey = sslKey
+        case .sslKeyPassphrase(let sslKeyPassphrase):
+          self.sslKeyPassphrase = sslKeyPassphrase
         }
     }
 
@@ -567,6 +591,18 @@ public class ClientRequest {
 		
         if useHTTP2 {
             curlHelperSetOptInt(handle!, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0)
+        }
+      
+        if let sslCertificate = self.sslCertificate {
+          curlHelperSetOptString(handle!, CURLOPT_SSLCERT, sslCertificate)
+          curlHelperSetOptString(handle!, CURLOPT_SSLCERTTYPE, "PEM")
+        }
+        if let sslKey = self.sslKey {
+          curlHelperSetOptString(handle!, CURLOPT_SSLKEY, sslKey)
+          curlHelperSetOptString(handle!, CURLOPT_SSLKEYTYPE, "PEM")
+        }
+        if let sslKeyPassphrase = self.sslKeyPassphrase {
+          curlHelperSetOptString(handle!, CURLOPT_KEYPASSWD, sslKeyPassphrase)
         }
         
         if let socketPath = unixDomainSocketPath?.cString(using: .utf8) {
